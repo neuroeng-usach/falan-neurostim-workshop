@@ -1,0 +1,49 @@
+cff-version: 1.2.0
+title: "Physics of Electrical Neurostimulation: a hands-on workshop"
+message: "If you use these materials, please cite them, and also cite NEURON and PyFibers."
+type: software
+authors:
+  - family-names: Medina
+    given-names: Leonel
+    affiliation: "NeuroEng@USACH, Universidad de Santiago de Chile"
+  - family-names: Osorio
+    given-names: Rodrigo
+    affiliation: "NeuroEng@USACH, Universidad de Santiago de Chile"
+  - family-names: Morales
+    given-names: Cristian
+    affiliation: "NeuroEng@USACH, Universidad de Santiago de Chile"
+year: 2026
+license: MIT
+repository-code: "https://github.com/neuroeng-usach/falan-neurostim-workshop"
+keywords:
+  - neurostimulation
+  - transcutaneous electrical nerve stimulation
+  - interferential current
+  - strength-duration curve
+  - volume conductor
+  - NEURON
+references:
+  - type: article
+    title: "Modeling the excitability of mammalian nerve fibers: influence of afterpotentials on the recovery cycle"
+    authors:
+      - family-names: McIntyre
+        given-names: "Cameron C."
+      - family-names: Richardson
+        given-names: "Andrew G."
+      - family-names: Grill
+        given-names: "Warren M."
+    journal: "Journal of Neurophysiology"
+    volume: 87
+    start: 995
+    end: 1006
+    year: 2002
+  - type: article
+    title: "The effects of general anaesthesia on nerve-motor response characteristics (rheobase and chronaxie) to peripheral nerve stimulation"
+    authors:
+      - family-names: Tsui
+        given-names: "Ban C. H."
+    journal: "Anaesthesia"
+    volume: 69
+    start: 678
+    end: 682
+    year: 2014

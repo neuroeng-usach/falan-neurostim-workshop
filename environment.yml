@@ -1,0 +1,24 @@
+# conda env create -f environment.yml && conda activate neurostim
+# then:  python scripts/selftest.py
+name: neurostim
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  # pinned to match pyfibers (numpy>=2.2,<2.4) so pip cannot downgrade numpy
+  # out from under a scipy built against a newer one -- see requirements.txt
+  - numpy>=2.2,<2.4
+  - scipy>=1.15,<1.16
+  - matplotlib>=3.7
+  - ipywidgets>=8.0
+  - jupyterlab>=4.0
+  - nbformat
+  - pip
+  - pip:
+      # NEURON and PyFibers are pip-only. `pyfibers` ships .mod mechanisms that
+      # must be compiled once after install:
+      #     pyfibers_compile
+      - neuron>=8.2
+      - pyfibers>=0.9
+      # Uncomment for the instructor-only FEM cross-check:
+      # - scikit-fem>=8.0

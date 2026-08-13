@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Physics of Electrical Neurostimulation — Explorer</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#171a23; --panel2:#1e2230; --text:#e8eaf0; --muted:#9aa0b4;
+    --accent:#4fb0ff; --pos:#ff5c5c; --neg:#4fa3ff; --grid:#2a2f40; --good:#3ecf8e;
+  }
+  *{box-sizing:border-box;}
+  body{background:var(--bg); color:var(--text); font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; margin:0; padding:20px;}
+  h1{font-size:20px; margin:0 0 4px;}
+  h2{font-size:15px; margin:0 0 10px; color:var(--accent);}
+  p.sub{color:var(--muted); margin:0 0 18px; font-size:13px;}
+  .tabs{display:flex; gap:8px; margin-bottom:16px;}
+  .tab{padding:8px 16px; background:var(--panel); border-radius:8px; cursor:pointer; font-size:13px; border:1px solid var(--grid);}
+  .tab.active{background:var(--accent); color:#0f1117; font-weight:600; border-color:var(--accent);}
+  .layout{display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;}
+  .panel{background:var(--panel); border-radius:12px; padding:18px; border:1px solid var(--grid);}
+  .controls{width:300px; flex-shrink:0;}
+  .plots{flex:1; min-width:520px;}
+  .row{margin-bottom:16px;}
+  label{display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px; color:var(--muted);}
+  label span.val{color:var(--text); font-weight:600;}
+  input[type=range]{width:100%; accent-color: var(--accent);}
+  .note{font-size:12px; color:var(--muted); background:var(--panel2); border-radius:8px; padding:10px 12px; margin-top:10px; line-height:1.5;}
+  canvas{background:var(--panel2); border-radius:10px; display:block; width:100%; margin-bottom:16px;}
+  .legend{display:flex; gap:16px; font-size:12px; color:var(--muted); margin:-6px 0 12px;}
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .dot{width:10px; height:10px; border-radius:2px; display:inline-block;}
+  table{width:100%; border-collapse:collapse; font-size:12px; margin-top:8px;}
+  th,td{border-bottom:1px solid var(--grid); padding:5px 4px; text-align:center;}
+  th{color:var(--muted); font-weight:500;}
+  td input{width:70px; background:var(--panel2); border:1px solid var(--grid); color:var(--text); border-radius:4px; padding:3px 4px; text-align:center;}
+  button{background:var(--accent); color:#0f1117; border:none; border-radius:6px; padding:7px 12px; font-size:12px; font-weight:600; cursor:pointer; margin-top:8px; margin-right:6px;}
+  button.secondary{background:var(--panel2); color:var(--text); border:1px solid var(--grid);}
+  .fitbox{font-size:13px; margin-top:10px; line-height:1.6;}
+  .fitbox b{color:var(--good);}
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+
+<h1>Physics of Electrical Neurostimulation — Interactive Explorer</h1>
+<p class="sub">Runs entirely in the browser, no install, no license. Two modules: activating function (cathodic vs. anodic) and strength-duration / chronaxie.</p>
+
+<div class="tabs">
+  <div class="tab active" data-tab="af">Module 1 · Activating Function</div>
+  <div class="tab" data-tab="sd">Module 2 · Strength-Duration Curve</div>
+</div>
+
+<!-- ============ MODULE 1: ACTIVATING FUNCTION ============ -->
+<div id="af" class="layout">
+  <div class="panel controls">
+    <h2>Electrode & fiber parameters</h2>
+
+    <div class="row">
+      <label>Current amplitude <span class="val" id="valI">-1.0 mA</span></label>
+      <input type="range" id="I" min="-5" max="5" step="0.1" value="-1">
+      <div class="note">Negative = cathodic, positive = anodic. Sign convention: current flows <i>into</i> the tissue for a positive value (anode = source).</div>
+    </div>
+
+    <div class="row">
+      <label>Electrode height above fiber <span class="val" id="valH">1.0 mm</span></label>
+      <input type="range" id="h" min="0.3" max="5" step="0.1" value="1">
+    </div>
+
+    <div class="row">
+      <label>Electrode position along fiber <span class="val" id="valX0">0.0 mm</span></label>
+      <input type="range" id="x0" min="-8" max="8" step="0.2" value="0">
+    </div>
+
+    <div class="row">
+      <label>Tissue conductivity σ <span class="val" id="valSigma">0.20 S/m</span></label>
+      <input type="range" id="sigma" min="0.05" max="0.5" step="0.01" value="0.2">
+    </div>
+
+    <div class="row">
+      <label>Depolarization threshold (illustrative) <span class="val" id="valThr">0.15</span></label>
+      <input type="range" id="thr" min="0.02" max="0.6" step="0.01" value="0.15">
+      <div class="note">Where the activating function crosses this line, that patch of membrane would be driven toward firing. Move it to see how threshold current changes with electrode height (this is the strength-duration/rheobase idea in miniature).</div>
+    </div>
+  </div>
+
+  <div class="panel plots">
+    <h2>Extracellular potential V<sub>e</sub>(x) along the fiber</h2>
+    <canvas id="cV" width="900" height="220"></canvas>
+
+    <h2>Activating function f(x) ∝ d²V<sub>e</sub>/dx²</h2>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--pos)"></span> depolarizing (f &gt; 0)</span>
+      <span><span class="dot" style="background:var(--neg)"></span> hyperpolarizing (f &lt; 0)</span>
+    </div>
+    <canvas id="cF" width="900" height="240"></canvas>
+    <div class="note" id="afReadout">—</div>
+  </div>
+</div>
+
+<!-- ============ MODULE 2: STRENGTH-DURATION ============ -->
+<div id="sd" class="layout hidden">
+  <div class="panel controls">
+    <h2>Theoretical curve (Weiss / Lapicque)</h2>
+    <div class="row">
+      <label>Rheobase I<sub>rh</sub> <span class="val" id="valIrh">1.00 mA</span></label>
+      <input type="range" id="irh" min="0.1" max="5" step="0.05" value="1">
+    </div>
+    <div class="row">
+      <label>Chronaxie τ<sub>c</sub> <span class="val" id="valTau">0.30 ms</span></label>
+      <input type="range" id="tau" min="0.02" max="2" step="0.01" value="0.3">
+      <div class="note">I(t) = I<sub>rh</sub> · (1 + τ<sub>c</sub>/t). Larger-diameter, myelinated axons → shorter chronaxie (excite easily with brief pulses); small/unmyelinated fibers → longer chronaxie.</div>
+    </div>
+
+    <h2 style="margin-top:22px;">Your measured data (forearm experiment)</h2>
+    <table id="dataTable">
+      <thead><tr><th>Pulse width (ms)</th><th>Threshold (mA)</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <button id="addRow" class="secondary">+ Add point</button>
+    <button id="fitData">Fit rheobase & chronaxie from data</button>
+    <div class="fitbox" id="fitResult"></div>
+  </div>
+
+  <div class="panel plots">
+    <h2>Strength-duration curve (log time axis)</h2>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--accent)"></span> theoretical curve</span>
+      <span><span class="dot" style="background:var(--good)"></span> fit to your data</span>
+      <span><span class="dot" style="background:#ff9d4d"></span> measured points</span>
+    </div>
+    <canvas id="cSD" width="900" height="460"></canvas>
+  </div>
+</div>
+
+<script>
+// ---------- tab switching ----------
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('af').classList.add('hidden');
+    document.getElementById('sd').classList.add('hidden');
+    document.getElementById(t.dataset.tab).classList.remove('hidden');
+  });
+});
+
+// ================= MODULE 1: ACTIVATING FUNCTION =================
+const cV = document.getElementById('cV').getContext('2d');
+const cF = document.getElementById('cF').getContext('2d');
+const els = ['I','h','x0','sigma','thr'].reduce((o,id)=>{o[id]=document.getElementById(id); return o;},{});
+
+function fmt(v, d=2){ return Number(v).toFixed(d); }
+
+function drawAxes(ctx, w, h, pad, xMin, xMax, yMin, yMax, xLabel, yLabel){
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle = '#2a2f40';
+  ctx.fillStyle = '#9aa0b4';
+  ctx.font = '11px sans-serif';
+  ctx.lineWidth = 1;
+  // gridlines
+  const nX = 8, nY = 6;
+  for(let i=0;i<=nX;i++){
+    const x = pad + i*(w-2*pad)/nX;
+    ctx.beginPath(); ctx.moveTo(x,pad); ctx.lineTo(x,h-pad); ctx.stroke();
+    const val = xMin + i*(xMax-xMin)/nX;
+    ctx.fillText(val.toFixed(1), x-10, h-pad+14);
+  }
+  for(let i=0;i<=nY;i++){
+    const y = pad + i*(h-2*pad)/nY;
+    ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(w-pad,y); ctx.stroke();
+    const val = yMax - i*(yMax-yMin)/nY;
+    ctx.fillText(val.toFixed(2), 4, y+3);
+  }
+  // zero line
+  if(yMin<0 && yMax>0){
+    const y0 = pad + (yMax-0)/(yMax-yMin)*(h-2*pad);
+    ctx.strokeStyle = '#555b70'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(pad,y0); ctx.lineTo(w-pad,y0); ctx.stroke();
+  }
+  ctx.fillStyle = '#e8eaf0';
+  ctx.fillText(xLabel, w-pad-40, h-6);
+  ctx.save(); ctx.translate(12,pad+10); ctx.rotate(-Math.PI/2); ctx.fillText(yLabel,0,0); ctx.restore();
+}
+
+function toPix(x,y,w,h,pad,xMin,xMax,yMin,yMax){
+  const px = pad + (x-xMin)/(xMax-xMin)*(w-2*pad);
+  const py = pad + (yMax-y)/(yMax-yMin)*(h-2*pad);
+  return [px,py];
+}
+
+function computeAF(){
+  const I = parseFloat(els.I.value);       // mA, signed
+  const h = parseFloat(els.h.value);       // mm
+  const x0 = parseFloat(els.x0.value);     // mm
+  const sigma = parseFloat(els.sigma.value); // S/m
+
+  const N = 161;
+  const xs = []; const V = [];
+  const xMin=-12, xMax=12;
+  for(let i=0;i<N;i++){
+    const x = xMin + i*(xMax-xMin)/(N-1);
+    xs.push(x);
+    // V(x) = I / (4 pi sigma r), r in meters. x,h,x0 in mm -> convert to m.
+    const r = Math.sqrt(((x-x0)*1e-3)**2 + (h*1e-3)**2);
+    // I in mA -> A ; result in volts -> convert to mV for readability
+    const Vv = (I*1e-3) / (4*Math.PI*sigma*r) * 1000; // mV
+    V.push(Vv);
+  }
+  // activating function ~ second spatial derivative (finite difference), scaled
+  const dx = xs[1]-xs[0];
+  const f = new Array(N).fill(0);
+  for(let i=1;i<N-1;i++){
+    f[i] = (V[i-1] - 2*V[i] + V[i+1]) / (dx*dx);
+  }
+  f[0]=f[1]; f[N-1]=f[N-2];
+  // normalize f to a friendly range for display
+  const maxAbs = Math.max(...f.map(Math.abs), 1e-9);
+  const fNorm = f.map(v=>v/maxAbs*1.0);
+  return {xs, V, f:fNorm, xMin, xMax};
+}
+
+function drawAF(){
+  els.valI.textContent = fmt(els.I.value,1)+' mA';
+  els.valH.textContent = fmt(els.h.value,1)+' mm';
+  els.valX0.textContent = fmt(els.x0.value,1)+' mm';
+  els.valSigma.textContent = fmt(els.sigma.value,2)+' S/m';
+  els.valThr.textContent = fmt(els.thr.value,2);
+
+  const {xs,V,f,xMin,xMax} = computeAF();
+  const w=900,h=220,pad=42;
+  const vMax = Math.max(...V.map(Math.abs))*1.15 || 1;
+  drawAxes(cV,w,h,pad,xMin,xMax,-vMax,vMax,'x along fiber (mm)','Ve (mV)');
+  cV.strokeStyle = '#4fb0ff'; cV.lineWidth=2; cV.beginPath();
+  xs.forEach((x,i)=>{ const [px,py]=toPix(x,V[i],w,h,pad,xMin,xMax,-vMax,vMax); i===0?cV.moveTo(px,py):cV.lineTo(px,py); });
+  cV.stroke();
+  // electrode marker
+  const [ex,ey] = toPix(parseFloat(els.x0.value), vMax*0.9, w,h,pad,xMin,xMax,-vMax,vMax);
+  cV.fillStyle='#ff9d4d'; cV.beginPath(); cV.arc(ex,ey,4,0,7); cV.fill();
+
+  const w2=900,h2=240,pad2=42;
+  const fMax = 1.2;
+  drawAxes(cF,w2,h2,pad2,xMin,xMax,-fMax,fMax,'x along fiber (mm)','f(x) (norm.)');
+  // filled regions
+  for(let i=0;i<xs.length-1;i++){
+    const [px1,py1] = toPix(xs[i], f[i], w2,h2,pad2,xMin,xMax,-fMax,fMax);
+    const [px2,py2] = toPix(xs[i+1], f[i+1], w2,h2,pad2,xMin,xMax,-fMax,fMax);
+    const [,zy] = toPix(xs[i],0,w2,h2,pad2,xMin,xMax,-fMax,fMax);
+    cF.beginPath();
+    cF.moveTo(px1,zy); cF.lineTo(px1,py1); cF.lineTo(px2,py2); cF.lineTo(px2,zy); cF.closePath();
+    cF.fillStyle = f[i]>=0 ? 'rgba(255,92,92,0.55)' : 'rgba(79,163,255,0.55)';
+    cF.fill();
+  }
+  // threshold line
+  const thr = parseFloat(els.thr.value);
+  [thr,-thr].forEach(t=>{
+    const [,ty] = toPix(0,t,w2,h2,pad2,xMin,xMax,-fMax,fMax);
+    cF.strokeStyle = '#ffd24f'; cF.setLineDash([5,4]); cF.lineWidth=1.5;
+    cF.beginPath(); cF.moveTo(pad2,ty); cF.lineTo(w2-pad2,ty); cF.stroke();
+    cF.setLineDash([]);
+  });
+
+  const peak = Math.max(...f); const trough = Math.min(...f);
+  const polarity = parseFloat(els.I.value) < 0 ? 'cathodic' : 'anodic';
+  let msg = `Polarity: <b>${polarity}</b>. Peak activating function ${peak.toFixed(2)} (depolarizing), trough ${trough.toFixed(2)} (hyperpolarizing). `;
+  if(polarity==='cathodic'){
+    msg += 'Directly under a cathode the fiber depolarizes; flanking regions are mildly hyperpolarized ("anodal surround").';
+  } else {
+    msg += 'Directly under an anode the fiber hyperpolarizes; flanking regions become depolarized — the "virtual cathode" effect that lets anodic stimulation also excite, usually at higher threshold.';
+  }
+  document.getElementById('afReadout').innerHTML = msg;
+}
+document.getElementById('af').querySelectorAll('input').forEach(i=>i.addEventListener('input', drawAF));
+drawAF();
+
+// ================= MODULE 2: STRENGTH-DURATION =================
+const cSD = document.getElementById('cSD').getContext('2d');
+const elsSD = ['irh','tau'].reduce((o,id)=>{o[id]=document.getElementById(id); return o;},{});
+let dataRows = [];
+
+function addRow(t='', v=''){
+  const tbody = document.querySelector('#dataTable tbody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td><input type="number" step="0.01" class="tdur" value="${t}"></td>
+                  <td><input type="number" step="0.01" class="tthr" value="${v}"></td>
+                  <td><button class="secondary rm">×</button></td>`;
+  tbody.appendChild(tr);
+  tr.querySelector('.rm').addEventListener('click', ()=>{ tr.remove(); drawSD(); });
+  tr.querySelectorAll('input').forEach(i=>i.addEventListener('input', drawSD));
+}
+document.getElementById('addRow').addEventListener('click', ()=>addRow());
+for(let i=0;i<3;i++) addRow();
+
+function getDataPoints(){
+  const pts = [];
+  document.querySelectorAll('#dataTable tbody tr').forEach(tr=>{
+    const t = parseFloat(tr.querySelector('.tdur').value);
+    const v = parseFloat(tr.querySelector('.tthr').value);
+    if(!isNaN(t) && !isNaN(v) && t>0 && v>0) pts.push([t,v]);
+  });
+  return pts;
+}
+
+function fitWeiss(pts){
+  // Linearization: I = Irh + Irh*tau * (1/t)  =>  I = a + b*(1/t), a=Irh, b=Irh*tau
+  const n = pts.length;
+  if(n<2) return null;
+  const xs = pts.map(p=>1/p[0]);
+  const ys = pts.map(p=>p[1]);
+  const mx = xs.reduce((s,v)=>s+v,0)/n;
+  const my = ys.reduce((s,v)=>s+v,0)/n;
+  let num=0, den=0;
+  for(let i=0;i<n;i++){ num += (xs[i]-mx)*(ys[i]-my); den += (xs[i]-mx)**2; }
+  const b = den===0?0:num/den;
+  const a = my - b*mx;
+  if(a<=0) return null;
+  return {Irh:a, tau:b/a};
+}
+
+function drawSD(){
+  els.irh && (els.irh); // no-op guard
+  document.getElementById('valIrh').textContent = fmt(elsSD.irh.value,2)+' mA';
+  document.getElementById('valTau').textContent = fmt(elsSD.tau.value,2)+' ms';
+
+  const w=900,h=460,pad=50;
+  const tMin=0.01, tMax=10; // ms, log scale
+  const Irh = parseFloat(elsSD.irh.value), tau = parseFloat(elsSD.tau.value);
+  const yMax = Irh*(1+tau/tMin) > 30 ? 30 : Math.max(Irh*6, 5);
+
+  cSD.clearRect(0,0,w,h);
+  cSD.fillStyle = '#9aa0b4'; cSD.font='11px sans-serif';
+  cSD.strokeStyle = '#2a2f40'; cSD.lineWidth=1;
+  const decades = [0.01,0.03,0.1,0.3,1,3,10];
+  function xLog(t){ return pad + (Math.log10(t)-Math.log10(tMin))/(Math.log10(tMax)-Math.log10(tMin))*(w-2*pad); }
+  function yLin(v){ return pad + (yMax-v)/(yMax-0)*(h-2*pad-20); }
+  decades.forEach(t=>{
+    const x = xLog(t);
+    cSD.beginPath(); cSD.moveTo(x,pad); cSD.lineTo(x,h-pad); cSD.stroke();
+    cSD.fillText(t+'ms', x-12, h-pad+14);
+  });
+  for(let i=0;i<=6;i++){
+    const v = yMax - i*yMax/6;
+    const y = yLin(v);
+    cSD.beginPath(); cSD.moveTo(pad,y); cSD.lineTo(w-pad,y); cSD.stroke();
+    cSD.fillText(v.toFixed(1)+'mA', 4, y+3);
+  }
+  cSD.fillStyle='#e8eaf0'; cSD.fillText('pulse duration (ms, log scale)', w-pad-110, h-10);
+
+  // theoretical curve
+  cSD.strokeStyle = '#4fb0ff'; cSD.lineWidth=2.5; cSD.beginPath();
+  for(let i=0;i<=200;i++){
+    const logT = Math.log10(tMin) + i*(Math.log10(tMax)-Math.log10(tMin))/200;
+    const t = Math.pow(10,logT);
+    const I = Irh*(1+tau/t);
+    const x = xLog(t), y = yLin(Math.min(I,yMax));
+    i===0?cSD.moveTo(x,y):cSD.lineTo(x,y);
+  }
+  cSD.stroke();
+  // rheobase asymptote
+  cSD.strokeStyle='#4fb0ff'; cSD.setLineDash([4,4]); cSD.lineWidth=1;
+  cSD.beginPath(); cSD.moveTo(pad, yLin(Irh)); cSD.lineTo(w-pad, yLin(Irh)); cSD.stroke();
+  cSD.setLineDash([]);
+  // chronaxie marker (t=tau, I=2*Irh)
+  const cx = xLog(tau), cy = yLin(Math.min(2*Irh,yMax));
+  cSD.fillStyle='#4fb0ff'; cSD.beginPath(); cSD.arc(cx,cy,4,0,7); cSD.fill();
+
+  // data points
+  const pts = getDataPoints();
+  cSD.fillStyle = '#ff9d4d';
+  pts.forEach(([t,v])=>{
+    const x = xLog(Math.max(t,tMin)), y = yLin(Math.min(v,yMax));
+    cSD.beginPath(); cSD.arc(x,y,5,0,7); cSD.fill();
+  });
+
+  // fit
+  const fit = fitWeiss(pts);
+  const fitResult = document.getElementById('fitResult');
+  if(fit){
+    cSD.strokeStyle = '#3ecf8e'; cSD.lineWidth=2; cSD.setLineDash([2,3]); cSD.beginPath();
+    for(let i=0;i<=200;i++){
+      const logT = Math.log10(tMin) + i*(Math.log10(tMax)-Math.log10(tMin))/200;
+      const t = Math.pow(10,logT);
+      const I = fit.Irh*(1+fit.tau/t);
+      const x = xLog(t), y = yLin(Math.min(I,yMax));
+      i===0?cSD.moveTo(x,y):cSD.lineTo(x,y);
+    }
+    cSD.stroke(); cSD.setLineDash([]);
+    fitResult.innerHTML = `Fit from your data: <b>I_rheobase ≈ ${fit.Irh.toFixed(2)} mA</b>, <b>chronaxie ≈ ${fit.tau.toFixed(2)} ms</b>. Compare to the theoretical curve's ${Irh.toFixed(2)} mA / ${tau.toFixed(2)} ms.`;
+  } else {
+    fitResult.textContent = 'Enter at least 2 valid (duration, threshold) points to fit rheobase and chronaxie from your forearm data.';
+  }
+}
+document.getElementById('fitData').addEventListener('click', drawSD);
+document.getElementById('sd').querySelectorAll('input').forEach(i=>i.addEventListener('input', drawSD));
+drawSD();
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+# Core. The numpy and scipy bounds are NOT cosmetic: pyfibers pins
+# numpy>=2.2,<2.4 and imports scipy, so an environment with a newer numpy gets it
+# downgraded by pip, after which a scipy built against the newer numpy fails to
+# import (AttributeError: ... '_blas_supports_fpe'). These are the versions the
+# workshop is tested against.
+numpy>=2.2,<2.4
+scipy>=1.15,<1.16
+matplotlib>=3.7
+ipywidgets>=8.0
+jupyterlab>=4.0
+
+# Axon simulations (Modules 1-2 of notebook 01, Part 4 of notebook 02).
+# NEURON ships Linux and macOS wheels; on Windows use WSL.
+# After installing, run once:   pyfibers_compile
+neuron>=8.2
+pyfibers>=0.9
+
+# Instructor-only FEM cross-check (instructor/instructor_only_*).
+# Not needed for the student notebooks.
+# scikit-fem>=8.0

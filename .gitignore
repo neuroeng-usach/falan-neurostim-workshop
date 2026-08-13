@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+*.exec.ipynb
+
+# NEURON / PyFibers compiled mechanisms
+x86_64/
+aarch64/
+arm64/
+*.o
+*.c.mod
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Anaconda Navigator project metadata (not part of the workshop)
+anaconda_projects/
+
+# Superseded material kept locally for reference, deliberately not published.
+# Safe to delete once you are happy with the restructured repo.
+_archive/
+
+# Instructor material -- deliberately NOT published.
+#
+# run_of_show.md and the two notes_*.md files contain the answers to the
+# predict-then-run questions the notebooks are built around (the bipolar
+# cathodic/anodic ratio is exactly 1.00; modulation depth at the centre of the
+# crossed montage is 0%). Publishing them next to the notebooks would defeat
+# the design. maintainer/ holds the publishing scripts, which students have no
+# use for.
+#
+# The one instructor-side document that IS public is the safety and equipment
+# sheet, which lives at SAFETY.md in the repository root: students need to read
+# the exclusion criteria and consent script before volunteering, and anyone
+# reusing this material needs the kit list.
+instructor/
+
+# Empty scratch directory from the restructure
+docs/
+.DS_Store
