@@ -107,6 +107,11 @@ def main() -> int:
         save("module0")
     step("Module 0 field + activating function (disc, bipolar)")(m0)
 
+    def images():
+        tp.draw_image_construction()
+        save("image_construction")
+    step("method-of-images figure (geometry + convergence)")(images)
+
     print("\n4. Notebook 02 figures — beat and interferential field")
 
     def beat():

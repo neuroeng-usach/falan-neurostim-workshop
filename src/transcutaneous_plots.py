@@ -236,3 +236,99 @@ def plot_module2(pts, fit, my_pts=None, my_fit=None):
     plt.show()
     print(f"Literature (Tsui et al. 2014, near-nerve ulnar): "
           f"rheobase {weiss.LITERATURE_ULNAR_RHEOBASE_MA} mA, chronaxie {weiss.LITERATURE_ULNAR_CHRONAXIE_MS} ms")
+
+
+
+def draw_image_construction(sigma1=lf.DEFAULT_SIGMA1, sigma2=lf.DEFAULT_SIGMA2,
+                            h_mm=lf.DEFAULT_H_MM, n_show=3, probe_depth_mm=8.0,
+                            probe_r_mm=5.0, max_terms=12):
+    """Show HOW Ve is built: the ladder of image sources, and how fast it converges.
+
+    Left: the geometry. The real electrode on the skin, the two mirrors (air
+    above, the conductivity step at depth h), and the virtual sources that each
+    reflection creates -- spaced 2h apart and weighted k^n.
+
+    Right: the check. Relative error against the converged value, on a log axis,
+    with |k|^n drawn alongside. A straight line parallel to |k|^n is what
+    "converges geometrically" actually looks like, and it is why ~40 terms is
+    plenty.
+    """
+    k = lf.reflection_coefficient(sigma1, sigma2)
+    top = 2 * n_show * h_mm + 0.9 * h_mm
+    fig, axs = plt.subplots(1, 2, figsize=(13, 5.6),
+                            gridspec_kw={"width_ratios": [1.0, 1.05]})
+
+    # ---------------- left: the image ladder --------------------------------
+    ax = axs[0]
+    ax.axhspan(0, top, color="#e8e8e4", zorder=0)
+    ax.axhspan(-h_mm, 0, color="#f6efe6", zorder=0)
+    ax.axhspan(-top, -h_mm, color="#e7eef7", zorder=0)
+    ax.axhline(0, color=lf.COLOR_INK, lw=2.2)
+    ax.axhline(-h_mm, color=lf.COLOR_BOUNDARY, lw=2, ls="--")
+
+    # Labels go in the empty margins, never inside the thin skin+fat band --
+    # at a realistic h of a few mm that band is only a sliver on this scale.
+    ax.text(-0.97, top * 0.80, "air — an insulator.\nReflects everything: +1",
+            fontsize=9, color=lf.COLOR_INK)
+    ax.annotate(f"skin + fat, $\\sigma_1$ = {sigma1:g} S/m   (thickness h = {h_mm:g} mm)",
+                xy=(-0.55, -h_mm / 2), xytext=(-0.97, -top * 0.26), fontsize=9,
+                arrowprops=dict(arrowstyle="->", color=lf.COLOR_INK, lw=1))
+    ax.text(-0.97, -top * 0.55,
+            f"muscle, $\\sigma_2$ = {sigma2:g} S/m\n(the nerve is in here)", fontsize=9)
+    ax.annotate(f"$k=\\dfrac{{\\sigma_1-\\sigma_2}}{{\\sigma_1+\\sigma_2}}$ = {k:+.2f}",
+                xy=(0.62, -h_mm), xytext=(0.58, -top * 0.62), fontsize=11,
+                color=lf.COLOR_BOUNDARY,
+                arrowprops=dict(arrowstyle="->", color=lf.COLOR_BOUNDARY, lw=1))
+
+    ax.plot(0, 0, "o", ms=14, color=lf.COLOR_ELECTRODE, zorder=6)
+    ax.annotate("$I_0$, the real electrode", xy=(0.03, 0), xytext=(0.46, top * 0.72),
+                fontsize=10, color=lf.COLOR_ELECTRODE,
+                arrowprops=dict(arrowstyle="->", color=lf.COLOR_ELECTRODE, lw=1.3))
+    for n in range(1, n_show + 1):
+        w = abs(k) ** n
+        for z in (2 * n * h_mm, -2 * n * h_mm):
+            ax.plot(0, z, "o", ms=5 + 13 * w, mfc="none", mew=1.8,
+                    color=lf.COLOR_ELECTRODE, alpha=0.30 + 0.55 * w, zorder=5)
+            ax.text(0.07, z, f"$k^{n}$ = {k ** n:+.3f}", fontsize=9, va="center",
+                    color=lf.COLOR_INK, alpha=0.9)
+
+    # the spacing IS the point: images sit at multiples of 2h
+    ax.annotate("", xy=(1.00, 0), xytext=(1.00, -2 * h_mm),
+                arrowprops=dict(arrowstyle="<->", color=lf.COLOR_STREAMLINE, lw=1.3))
+    ax.text(1.04, -h_mm, "2h", fontsize=9.5, color=lf.COLOR_STREAMLINE, va="center")
+
+    ax.set_xlim(-1.0, 1.16)
+    ax.set_ylim(-top, top)
+    ax.set_xticks([])
+    ax.set_ylabel("depth z (mm)")
+    ax.set_title("Each reflection adds a virtual source, 2h further away")
+
+    # ---------------- right: how fast it converges --------------------------
+    ax = axs[1]
+    probes = [(probe_r_mm, -h_mm / 2, "probe in skin + fat", lf.COLOR_BOUNDARY),
+              (probe_r_mm, -probe_depth_mm,
+               f"probe at the fibre ({probe_depth_mm:g} mm deep)", "#2a78d6")]
+    ns = np.arange(0, max_terms + 1)
+    for r, z, label, c in probes:
+        vals = np.array([float(lf._point_potential(r, z, sigma1=sigma1, sigma2=sigma2,
+                                                   h_mm=h_mm, n_terms=int(n))) for n in ns])
+        converged = float(lf._point_potential(r, z, sigma1=sigma1, sigma2=sigma2,
+                                              h_mm=h_mm, n_terms=200))
+        rel = np.abs(vals - converged) / abs(converged)
+        ax.semilogy(ns, np.maximum(rel, 1e-17), "o-", color=c, lw=1.8, ms=4, label=label)
+    ax.semilogy(ns, abs(k) ** ns, ls="--", color=lf.COLOR_STREAMLINE, lw=1.6,
+                label=f"$|k|^n$, $|k|$={abs(k):.2f}")
+    ax.axhline(1e-6, color=lf.COLOR_INK, lw=1, ls=":", alpha=0.6)
+    ax.text(max_terms * 0.55, 1.5e-6, "one part in a million", fontsize=8.5, alpha=0.75)
+    ax.grid(alpha=0.4, lw=0.5, which="both")
+    ax.set_axisbelow(True)
+    ax.set_xlabel("number of image terms kept, n")
+    ax.set_ylabel("relative error against the converged value")
+    ax.set_title("Geometric convergence: error falls like $|k|^n$")
+    ax.legend(fontsize=8.5, loc="upper right")
+
+    plt.tight_layout()
+    plt.show()
+    n_needed = int(np.ceil(np.log(1e-6) / np.log(abs(k)))) if 0 < abs(k) < 1 else 0
+    print(f"k = {k:+.3f}: every extra reflection is {abs(k):.2f}x weaker than the last, "
+          f"so ~{n_needed} terms give six-figure accuracy. layered_field uses 60.")
